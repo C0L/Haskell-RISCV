@@ -1,5 +1,5 @@
 {
-module Lexer (Token(..), alexScanTokens) where
+module Lexer (alexScanTokens, Token(..)) where
 }
 
 %wrapper "basic"
@@ -71,4 +71,3 @@ data Token
   deriving (Eq,Show)
 
 }
-

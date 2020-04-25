@@ -2,7 +2,7 @@
 {-# LANGUAGE CPP #-}
 {-# LINE 1 "Lexer.x" #-}
 
-module Lexer (Token(..), alexScanTokens) where
+module Lexer (alexScanTokens, Token(..)) where
 
 #if __GLASGOW_HASKELL__ >= 603
 #include "ghcconfig.h"
