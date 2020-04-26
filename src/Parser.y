@@ -2,6 +2,7 @@
 module Parser where
 
 import Lexer
+import BinOps 
 }
 
 %name parser
@@ -39,9 +40,17 @@ import Lexer
 %left '*' 
 %%
 
-Entry : true {"false"}
+TopLevel: BinOps
 
-
+BinOps : TopLevel '*' TopLevel 
+       | TopLevel '+' TopLevel 
+       | TopLevel '-' TopLevel 
+       | TopLevel '<' TopLevel 
+       | TopLevel '<=' TopLevel 
+       | TopLevel '==' TopLevel 
+       | TopLevel '/=' TopLevel 
+       | TopLevel '&&' TopLevel 
+       | TopLevel '||' TopLevel 
 {
 parseError :: [Token] -> a
 parseError _ = error "Parse error"
