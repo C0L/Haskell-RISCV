@@ -1,5 +1,10 @@
 {
-module Lexer (alexScanTokens, Token(..)) where
+{-# LANGUAGE FlexibleContexts #-}
+
+module Lexer (scanTokens, Token(..)) where
+
+import Control.Monad.Except
+
 }
 
 %wrapper "basic"
@@ -10,10 +15,8 @@ $eol   = [\n]
 
 tokens :- 
   $white+  ;
+  $eol+    ;
   $digit+  {\s -> NUM (read s)}
-
-  true     {\s -> TRUE}
-  false    {\s -> FALSE}
 
   if       {\s -> IF}
   else     {\s -> ELSE}
@@ -25,7 +28,7 @@ tokens :-
   \}       {\s -> CBRACE}
 
   \==      {\s -> EQL}
-  \/=      {\s -> NEQ}
+  \!=      {\s -> NEQ}
   \<       {\s -> LESS}
   \<=      {\s -> LEQ}
 
@@ -46,9 +49,7 @@ tokens :-
 {
 
 data Token
-  = TRUE 
-  | FALSE
-  | IF
+  = IF
   | ELSE 
   | LPAREN
   | RPAREN
@@ -70,4 +71,15 @@ data Token
   | INT
   deriving (Eq,Show)
 
+scanTokens :: String -> Except String [Token]
+scanTokens str = go ('\n',[],str) where 
+  go inp@(_,_bs,str) =
+    case alexScan inp 0 of
+     AlexEOF -> return []
+     AlexError _ -> throwError "Invalid lexeme."
+     AlexSkip  inp' len     -> go inp'
+     AlexToken inp' len act -> do
+      res <- go inp'
+      let rest = act (take len str)
+      return (rest : res)
 }

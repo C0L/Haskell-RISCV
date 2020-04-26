@@ -1,8 +1,12 @@
 module Main where
 import Parser
 import Lexer
+import Comp
 
+--main :: IO ()
 main = do
-  fileStr <- getContents
-  let out = parser $ alexScanTokens fileStr
-  putStr out
+  input <- getContents
+  let tokens = parseTokens input 
+  putStrLn ("Tokens: " ++ show tokens)
+  let ast = parseExpr input
+  putStrLn ("Syntax: " ++ show ast)
