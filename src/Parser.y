@@ -7,7 +7,7 @@ import Control.Monad.Except
 
 }
 
-%name parser
+%name parser  
 
 %tokentype { Token }
 %monad { Except String } { (>>=) } { return }
@@ -34,6 +34,8 @@ import Control.Monad.Except
   '!='  {NEQ}
   '=='  {EQL}
   'int' {INT}
+  'main'   {MAIN}
+  'return' {RET} 
 
 %nonassoc '=' '==' '!=' '<' '<=' if else
 %left '||' '&&'
@@ -41,33 +43,43 @@ import Control.Monad.Except
 %left '*' 
 %%
 
-TopLevel : Vals                             {$1}
-         | Cond                             {$1}
-         | Paren                            {$1}
-         | Typs                             {$1}
-         | BinOps                           {$1}
+Func : 'int' 'main' '(' ')' '{' Div '}'     {Main $6}
+     | Div                                  {$1} 
 
-BinOps : TopLevel '*' TopLevel              {BinOp Mul $1 $3}
-       | TopLevel '+' TopLevel              {BinOp Plus $1 $3}
-       | TopLevel '-' TopLevel              {BinOp Minus $1 $3}
-       | TopLevel '<' TopLevel              {BinOp Lt $1 $3} 
-       | TopLevel '<=' TopLevel             {BinOp Le $1 $3} 
-       | TopLevel '==' TopLevel             {BinOp Eq $1 $3} 
-       | TopLevel '!=' TopLevel             {BinOp Ne $1 $3} 
-       | TopLevel '&&' TopLevel             {BinOp And $1 $3} 
-       | TopLevel '||' TopLevel             {BinOp Or $1 $3}
+Div : Typs ';' Div                          {LnBrk $1 $3}
+    | Typs ';'                              {$1}
+    | Typs                                  {$1}
+
+Typs : 'int' VAR '=' NUM                    {DeclareInt $2 $4}
+     | Vals                                 {$1}
+
 
 Vals : NUM                                  {EvalInt $1}
      | VAR                                  {EvalVar $1}
+     | Cond                                 {$1}
 
-Paren : '(' TopLevel ')'                    {$2}
+Cond : if '(' Func ')' '{' Func '}'         {IfExp $3 $6}
+     | if '(' Func ')' '{' Func '}' Div     {LnBrk (IfExp $3 $6) $8}
+     | BinOps                               {$1}
 
-Cond : if '(' TopLevel ')' '{' TopLevel '}' {IfExp $3 $6}
+BinOps : Func '*' Func                      {BinOp Mul $1 $3}
+       | Func '+' Func                      {BinOp Plus $1 $3}
+       | Func '-' Func                      {BinOp Minus $1 $3}
+       | Func '<' Func                      {BinOp Lt $1 $3} 
+       | Func '<=' Func                     {BinOp Le $1 $3} 
+       | Func '==' Func                     {BinOp Eq $1 $3} 
+       | Func '!=' Func                     {BinOp Ne $1 $3} 
+       | Func '&&' Func                     {BinOp And $1 $3} 
+       | Func '||' Func                     {BinOp Or $1 $3}
+       | Paren                              {$1}
 
-Typs : 'int' VAR '=' NUM ';'                {DeclareInt $2 $4}
+Paren : '(' Func ')'                        {$2}
+      | Ret                                 {$1}
+
+Ret : 'return' Vals ';'                     {RetV $2}
+
 
 {
-
 parseError :: [Token] -> Except String a
 parseError (l:ls) = throwError (show l)
 parseError [] = throwError "Unexpected end of Input"

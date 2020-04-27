@@ -3,7 +3,7 @@ import Parser
 import Lexer
 import Comp
 
---main :: IO ()
+main :: IO ()
 main = do
   input <- getContents
   let tokens = parseTokens input 

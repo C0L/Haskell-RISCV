@@ -20,6 +20,9 @@ data Expression
   | EvalVar String
   | EvalInt Int
   | DeclareInt String Int 
+  | Main Expression 
+  | LnBrk Expression Expression 
+  | RetV Expression
   deriving (Eq, Ord, Show)
 
 

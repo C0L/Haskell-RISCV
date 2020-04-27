@@ -43,6 +43,9 @@ tokens :-
   ";"      {\s -> EOL}
 
   int      {\s -> INT}
+  main     {\s -> MAIN}
+
+  return   {\s -> RET}
 
   $alpha [$alpha $digit \_ \']* {\s -> VAR s }
 
@@ -69,6 +72,8 @@ data Token
   | NEQ
   | EQL
   | INT
+  | MAIN
+  | RET
   deriving (Eq,Show)
 
 scanTokens :: String -> Except String [Token]
