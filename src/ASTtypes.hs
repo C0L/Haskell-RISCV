@@ -23,6 +23,7 @@ data Expression
   | Main Expression 
   | LnBrk Expression Expression 
   | RetV Expression
+  | Prog Expression
   deriving (Eq, Ord, Show)
 
 

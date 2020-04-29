@@ -2,19 +2,28 @@ module Comp where
 
 import Parser
 import ASTtypes
+import Text.Printf
 
-
--- IfExp (BinOp Eq (EvalVar "x") (EvalInt 1)) (DeclareInt "x" 2)
+-- scope list 
+--Right (Main (RetV (EvalInt 1)))
 
 compMain :: Expression -> String
 compMain exp = case exp of 
+  (Prog exp)                        -> defHeader ++ (compMain exp)
+  (Main exp)                        -> "main:\n" ++ (compMain exp)
   (IfExp (BinOp bop b0 b1) e1)      -> case bop of 
-                                          Le  -> "\tBLT\n"    -- Branch less than
-                                          Lt  -> "\tBLE\n"    -- Branch less than or equal
-                                          Ne  -> "\tBNE\n"    -- Branch not equal
-                                          Eq  -> "\tBEQ\n"    -- Branch equal
+                                          Le  -> "\tblt\n"    -- Branch less than
+                                          Lt  -> "\tble\n"    -- Branch less than or equal
+                                          Ne  -> "\tbne\n"    -- Branch not equal
+                                          Eq  -> "\tbeq\n"    -- Branch equal
   (DeclareInt id e0)                -> "DECLARATION"
+  (EvalInt exp)                     -> show exp
   (BinOp bop e0 e1)                 -> (compBop bop (compMain e0) (compMain e1))
+  (RetV exp)                        -> printf "\tli\ta0,%s\n\tret\n" (compMain exp)                -- Return
+
+
+defHeader :: String
+defHeader = "\t.text\n\t.align\t1\n\t.global\t.main\n"
 
 
 compBop :: BinaryOperator -> String -> String -> String
