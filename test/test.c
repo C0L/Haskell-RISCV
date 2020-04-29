@@ -1,3 +1,5 @@
 int main () {
-  return 1;
+  int x = 9;
+  return 9;
 }
+

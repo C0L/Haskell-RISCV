@@ -14,8 +14,9 @@ main = do
   putStrLn ("Syntax: " ++ show ast)
   case ast of
     Left err -> do 
-                  putStrLn "Parse Error:" 
-                  print err
+      putStrLn "Parse Error" 
+      print err
     Right ps -> do
-                  let asm = compMain (Prog ps)
-                  putStrLn("Asm: \n" ++ asm)
+      let toks = case tokens of (Right t) -> t
+      let asm = compMain (Prog ps) toks
+      putStrLn("Asm: \n" ++ asm)
