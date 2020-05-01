@@ -54,7 +54,7 @@ Typs : 'int' VAR '=' NUM                    {DeclareInt $2 $4}
      | Vals                                 {$1}
 
 
-Vals : NUM                                  {EvalInt $1}
+Vals : NUM                                  {IntLiteral $1}
      | VAR                                  {EvalVar $1}
      | Cond                                 {$1}
 

@@ -18,7 +18,7 @@ data Expression
   = BinOp BinaryOperator Expression Expression
   | IfExp Expression Expression 
   | EvalVar String
-  | EvalInt Int
+  | IntLiteral Int
   | DeclareInt String Int 
   | Main Expression 
   | LnBrk Expression Expression 
