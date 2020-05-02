@@ -22,7 +22,7 @@ This results in the following:
 
 [TODO] add example prog output
 
-##Testing
+## Testing
 
 The outputted assembly from the above program can be added to its own file. For this example I will call this file test.s.
 
@@ -40,6 +40,7 @@ To find where main method starts we run:
 
 `riscv64-unknown-elf-objdump -d test.o | less`
 
+```
 000000000001014a <main>:
    1014a:       1141                    addi    sp,sp,-16
    1014c:       e422                    sd      s0,8(sp)
@@ -49,6 +50,7 @@ To find where main method starts we run:
    10154:       6422                    ld      s0,8(sp)
    10156:       0141                    addi    sp,sp,16
    10158:       8082                    ret
+```
 
 This means that at pc = 0x000000000001014a our code will actual begin. This simple program just returns 1.
 
@@ -62,4 +64,4 @@ Once reached the end we can see what value is in the return address by running `
 
 [TODO] Complete
 
-##Implimentation Details
+## Implimentation Details
