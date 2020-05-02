@@ -3,6 +3,5 @@ int main () {
   int y = 1;
   int d = 2;
   int p = 3;
-  return x;
+  return 9000;
 }
-

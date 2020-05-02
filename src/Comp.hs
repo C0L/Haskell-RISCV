@@ -4,66 +4,65 @@ import Parser
 import Lexer
 import ASTtypes
 import Text.Printf
+import Text.Read
 
-type RegUse = Bool
 type Bytes = Int 
 type Offset = Int
 type ID = String
+type Reg = String
 type ASM = String
 type Scope = [(Offset,ID)]
-type RegSpace = [(String, RegUse)]
-type ProgData = (Scope, RegSpace, ASM)
+type ProgData = (Scope, ASM)
+
 
 --Check if correct stack space value is found
 compMain :: Expression -> [Token] -> ASM
 compMain exp toks = (defHeader sSpace) ++ res
   where 
-    sSpace           = stackSpace toks 0
-    (scope, rs, res) = (compExp exp [] [])
+    sSpace       = stackSpace toks 0
+    (scope, res) = (compExp exp "x5" [])
 
 -- Store associated register in the scope var??
 -- Reset these values after a if or func
 -- Unsafe IO to generate random string???
 -- NEED AN ADD SCOPE FUNCTIOION THAT CAN ALSO CALL ON LINE BREAKS
-compExp :: Expression -> Scope -> RegSpace -> ProgData
-compExp exp scope rs = case exp of 
-  (Prog e0)                         -> compExp e0 scope rs
+compExp :: Expression -> Reg -> Scope -> ProgData
+compExp exp reg scope = case exp of 
+  (Prog e0)                         -> compExp e0 reg scope 
 
-  (Main e0)                         -> let (nScope, nRs, asm) = (compExp e0 scope rs) 
-                                       in (scope, rs, "main:\n" ++ prologue ++ asm)
+  (Main e0)                         -> let (nScope, asm) = (compExp e0 reg scope) 
+                                       in (scope, "main:\n" ++ prologue ++ asm)
 
   (IfExp (BinOp bop b0 b1) e0)      -> case bop of 
-                                          Le  -> (scope, rs, "\tblt\n")    -- Branch less than FILLER
+                                          Le  -> (scope, "\tblt\n")    -- Branch less than FILLER
                                           --Lt  -> "\tble\n"    -- Branch less than or equal
                                           --Ne  -> "\tbne\n"    -- Branch not equal
                                           --Eq  -> "\tbeq\n"    -- Branch equal
 
-  (DeclareInt id e0)                -> addInteger (scope, rs) id e0
+  (DeclareInt id e0)                -> addInteger scope id e0
 
-  (IntLiteral e0)                   -> (scope, rs, show e0)
+  (IntLiteral e0)                   -> (scope, loadLiteral reg e0)
 
-  (EvalVar e0)                      -> (scope, rs, "PLACEHOLDER") --retStack e0 scope load value from stack into a reg
+  (EvalVar e0)                      -> (scope, retrieveStack reg e0 scope) -- Load var into general purpose reg
 
-  (BinOp bop e0 e1)                 -> (scope, rs, "PLACEHOLDER") --(compBop bop (compExp e0 scope rs) (compExp e1 scope rs))
+  (BinOp bop e0 e1)                 -> (scope, "PLACEHOLDER") --(compBop bop (compExp e0 scope rs) (compExp e1 scope rs))
 
-  (RetV e0)                         -> let (nScope, nRs, asm) = (compExp e0 scope rs)
-                                       in (scope, rs, (funcRet asm epilogue))
+  (LnBrk e0 e1)                     -> let (s0, asm0) = (compExp e0 reg scope) 
+                                           (s1, asm1) = (compExp e1 reg s0)      -- Eval next line with new scope
+                                       in  (s1, asm0 ++ asm1)
 
-  (LnBrk e0 e1)                     -> let (s0, r0, asm0) = (compExp e0 scope rs) 
-                                           (s1, r1, asm1) = (compExp e1 s0 r0)      -- Eval next line with new scope
-                                       in (s1, r1, asm0 ++ asm1)
 
-  -- Add line breakages here for more sophisticated scope usage
+  (RetV e0)                         -> let (nScope, asm) = (compExp e0 "a0" scope)
+                                       in (scope, asm ++ epilogue ++ funcRet)
 
 
 
 -- Start the first value above the fp and ra, all later storage locations are based off this
-addInteger :: (Scope, RegSpace) -> ID -> Int -> ProgData
-addInteger ([],rs) id val = ([(16, id)], rs, (storeStack val 16))
-addInteger (sc,rs) id val = ([(nAddress, id)] ++ sc, rs, storeStack val nAddress)
+addInteger :: Scope -> ID -> Int -> ProgData
+addInteger [] id val = ([(16, id)], (storeStack val 16))
+addInteger sc id val = ([(nAddress, id)] ++ sc, storeStack val nAddress)
   where 
     nAddress = (fst (head sc)) + 8
-
 
 
 -- Potentially add tyoes and pass that in here
@@ -71,28 +70,28 @@ storeStack :: Int -> Bytes -> ASM
 storeStack val add = printf "\tli\tx5,0x%x\n\
                             \\tsw\tx5,%d(sp)\n" val add
 
-retStack :: ID -> Scope -> ASM
-retStack id []     = error "Major issue, var not in scope" 
-retStack id (x:xs) = if id == (snd x) 
-                     then printf "\t" -- NEED TO ADD ASSEMBLY TO PUT VALUE IN RIGHT VARIABLE
-                     else retStack id xs
+
+retrieveStack :: Reg -> ID -> Scope -> ASM
+retrieveStack reg id []     = error "Major issue, var not in scope" 
+retrieveStack reg id (x:xs) = if id == (snd x) 
+                              then printf "\tlw\t%s,%d(sp)\n" reg (fst x) 
+                              else retrieveStack reg id xs
 
 
-funcRet :: String -> ASM -> ASM
-funcRet rv epi = printf  "\tli\ta0,%s\n\
-                          \%s\
-                          \\tjr\tra\n" rv epi
+loadLiteral :: Reg -> Int -> ASM
+loadLiteral reg val = printf "\tli\t%s,%d\n" reg val
+
+
+funcRet :: ASM
+funcRet = "\tjr\tra\n" 
+
 
 defHeader :: Bytes -> ASM
 defHeader stackSize =  printf  "\t.equ\tFP_OFFSET,-16\n\
                                 \\t.equ\tLOCAL_VARS,-%d\n\
                                 \\t.text\n\
                                 \\t.align\t1\n\
-                                \\t.global\t.main\n" stackSize
--- Get the next open register
---freeRegister :: RegSpace -> String -> RegSpace
---freeRegister  
-
+                                \\t.globl\tmain\n" stackSize
 
 -- fp should be s0
 -- 8 bytes for the FP byte integer, 8 per other int 
@@ -107,9 +106,6 @@ prologue =  "\taddi\tsp,sp,LOCAL_VARS\n\
              \\taddi\tsp,sp,FP_OFFSET\n\
              \\tsw\tfp,0(sp)\n\
              \\tsw\tra,8(sp)\n"
-             
-             -- addi\tfp,sp,LOCAL_VARS\n\
-             -- addi\tfp,sp,FP_OFFSET\n
 
 epilogue :: ASM    -- Restore registers and stack pointer
 epilogue = printf  "\tlw\tfp,8(sp)\n\

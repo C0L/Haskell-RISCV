@@ -4,35 +4,13 @@
 	.attribute unaligned_access, 0
 	.attribute stack_align, 16
 	.text
-	.align	1
-	.globl	test
-	.type	test, @function
-test:
-	addi	sp,sp,-16
-	sd	s0,8(sp)
-	addi	s0,sp,16
-	li	a5,1
-	mv	a0,a5
-	ld	s0,8(sp)
-	addi	sp,sp,16
-	jr	ra
-	.size	test, .-test
+	.section	.text.startup,"ax",@progbits
 	.align	1
 	.globl	main
 	.type	main, @function
 main:
-	addi	sp,sp,-32
-	sd	ra,24(sp)
-	sd	s0,16(sp)
-	addi	s0,sp,32
-	call	test
-	mv	a5,a0
-	sw	a5,-20(s0)
-	lw	a5,-20(s0)
-	mv	a0,a5
-	ld	ra,24(sp)
-	ld	s0,16(sp)
-	addi	sp,sp,32
-	jr	ra
+	li	a0,8192
+	addi	a0,a0,808
+	ret
 	.size	main, .-main
 	.ident	"GCC: (GNU) 9.2.0"
