@@ -5,6 +5,7 @@ import Parser
 import Lexer
 import Comp
 
+
 main :: IO ()
 main = do
   input <- getContents
