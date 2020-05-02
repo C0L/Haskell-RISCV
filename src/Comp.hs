@@ -47,7 +47,7 @@ compExp exp scope rs = case exp of
   (BinOp bop e0 e1)                 -> (scope, rs, "PLACEHOLDER") --(compBop bop (compExp e0 scope rs) (compExp e1 scope rs))
 
   (RetV e0)                         -> let (nScope, nRs, asm) = (compExp e0 scope rs)
-                                       in (scope, rs, epilogue ++ (funcRet asm))
+                                       in (scope, rs, (funcRet asm epilogue))
 
   (LnBrk e0 e1)                     -> let (s0, r0, asm0) = (compExp e0 scope rs) 
                                            (s1, r1, asm1) = (compExp e1 s0 r0)      -- Eval next line with new scope
@@ -59,28 +59,29 @@ compExp exp scope rs = case exp of
 
 -- Start the first value above the fp and ra, all later storage locations are based off this
 addInteger :: (Scope, RegSpace) -> ID -> Int -> ProgData
-addInteger (sc,rs) [] id val = ([(16, id)], rs, (storeStack val 16))
+addInteger ([],rs) id val = ([(16, id)], rs, (storeStack val 16))
 addInteger (sc,rs) id val = ([(nAddress, id)] ++ sc, rs, storeStack val nAddress)
   where 
-    nAddress = (fst (last scope)) + 8
+    nAddress = (fst (head sc)) + 8
 
 
 
 -- Potentially add tyoes and pass that in here
 storeStack :: Int -> Bytes -> ASM
-storeStack val add = printf "\tli\tx5,%h\
-                            \\tsw\tx5,%d(sp)" val add
+storeStack val add = printf "\tli\tx5,0x%x\n\
+                            \\tsw\tx5,%d(sp)\n" val add
 
-retStack :: ID -> scope -> ASM
+retStack :: ID -> Scope -> ASM
 retStack id []     = error "Major issue, var not in scope" 
 retStack id (x:xs) = if id == (snd x) 
                      then printf "\t" -- NEED TO ADD ASSEMBLY TO PUT VALUE IN RIGHT VARIABLE
                      else retStack id xs
 
 
-funcRet :: String -> ASM
-funcRet rv = printf  "\tli\ta0,%s\n\
-                      \\tjr\tra\n" rv
+funcRet :: String -> ASM -> ASM
+funcRet rv epi = printf  "\tli\ta0,%s\n\
+                          \%s\
+                          \\tjr\tra\n" rv epi
 
 defHeader :: Bytes -> ASM
 defHeader stackSize =  printf  "\t.equ\tFP_OFFSET,-16\n\
@@ -105,9 +106,10 @@ prologue :: ASM
 prologue =  "\taddi\tsp,sp,LOCAL_VARS\n\
              \\taddi\tsp,sp,FP_OFFSET\n\
              \\tsw\tfp,0(sp)\n\
-             \\tsw\tra,8(sp)\n\
-             \\taddi\tfp,sp,LOCAL_VARS\n\
-             \\taddi\tfp,sp,FP_OFFSET\n"
+             \\tsw\tra,8(sp)\n"
+             
+             -- addi\tfp,sp,LOCAL_VARS\n\
+             -- addi\tfp,sp,FP_OFFSET\n
 
 epilogue :: ASM    -- Restore registers and stack pointer
 epilogue = printf  "\tlw\tfp,8(sp)\n\
