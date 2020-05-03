@@ -11,8 +11,9 @@ type Offset = Int
 type ID = String
 type Reg = String
 type ASM = String
+type Mark = Int
 type Scope = [(Offset,ID)]
-type ProgData = (Scope, ASM)
+type ProgData = (Scope, ASM, Mark)
 
 
 --Check if correct stack space value is found
@@ -20,47 +21,63 @@ compMain :: Expression -> [Token] -> ASM
 compMain exp toks = (defHeader sSpace) ++ res
   where 
     sSpace       = stackSpace toks 0
-    (scope, res) = (compExp exp "x5" [])
+    (scope, res, mk) = (compExp exp "x5" [] 0)
 
 -- Store associated register in the scope var??
 -- Reset these values after a if or func
 -- Unsafe IO to generate random string???
 -- NEED AN ADD SCOPE FUNCTIOION THAT CAN ALSO CALL ON LINE BREAKS
-compExp :: Expression -> Reg -> Scope -> ProgData
-compExp exp reg scope = case exp of 
-  (Prog e0)                         -> compExp e0 reg scope 
+compExp :: Expression -> Reg -> Scope -> Mark -> ProgData
+compExp exp reg scope mark = case exp of 
+  (Prog e0)                         -> compExp e0 reg scope mark 
 
-  (Main e0)                         -> let (nScope, asm) = (compExp e0 reg scope) 
-                                       in (scope, "main:\n" ++ prologue ++ asm)
+  (Main e0)                         -> let (nScope, asm, mk) = (compExp e0 reg scope mark) 
+                                       in (scope, "main:\n" ++ prologue ++ asm, mk)
 
   (IfExp (BinOp bop b0 b1) e0)      -> case bop of 
-                                          Le  -> (scope, "\tblt\n")    -- Branch less than FILLER
+                                          otherwise -> (scope,"IF EXPRESSION PARSED!!", mark)
+                                          Le  -> (scope, "\tblt\n", mark)    -- Branch less than FILLER
                                           --Lt  -> "\tble\n"    -- Branch less than or equal
                                           --Ne  -> "\tbne\n"    -- Branch not equal
                                           --Eq  -> "\tbeq\n"    -- Branch equal
 
-  (DeclareInt id e0)                -> addInteger scope id e0
+  (DeclareInt id e0)                -> addInteger scope id e0 mark
 
-  (IntLiteral e0)                   -> (scope, loadLiteral reg e0)
+  (IntLiteral e0)                   -> (scope, loadLiteral reg e0, mark)
 
-  (EvalVar e0)                      -> (scope, retrieveStack reg e0 scope) -- Load var into general purpose reg
+  (EvalVar e0)                      -> (scope, retrieveStack reg e0 scope, mark) -- Load var into general purpose reg
 
-  (BinOp bop e0 e1)                 -> (scope, "PLACEHOLDER") --(compBop bop (compExp e0 scope rs) (compExp e1 scope rs))
-
-  (LnBrk e0 e1)                     -> let (s0, asm0) = (compExp e0 reg scope) 
-                                           (s1, asm1) = (compExp e1 reg s0)      -- Eval next line with new scope
-                                       in  (s1, asm0 ++ asm1)
+  (BinOp bop e0 e1)                 -> let (_, asm0, _) = (compExp e0 "x5" scope mark) 
+                                           (_, asm1, _) = (compExp e0 "x6" scope mark) 
+                                       in (scope, conditionalBlock bop asm0 asm1 mark reg, mark+1) 
 
 
-  (RetV e0)                         -> let (nScope, asm) = (compExp e0 "a0" scope)
-                                       in (scope, asm ++ epilogue ++ funcRet)
+  (LnBrk e0 e1)                     -> let (s0, asm0, mk0) = (compExp e0 reg scope mark) 
+                                           (s1, asm1, mk1) = (compExp e1 reg s0 mk0)      -- Eval next line with new scope
+                                       in  (s1, asm0 ++ asm1, mk1)
+
+
+  (RetV e0)                         -> let (s0, asm, mk0) = (compExp e0 "a0" scope mark)
+                                       in (s0, asm ++ epilogue ++ funcRet, mk0)
+
+
+
+-- Assume that the predicates are in register x5 and x6
+conditionalBlock :: BinaryOperator -> ASM -> ASM -> Mark -> Reg -> ASM
+conditionalBlock bop posExp negExp mk reg = printf case bop of 
+  Lt -> printf "\tblt\tx5,x6,mark_%d:\n\
+                \%s\                        
+                \\tjal\tmark_%d:\n\
+                \mark_%d:\n\
+                \%s\          
+                \mark_%d:\n" mk negExp (mk+1) mk posExp (mk+1)
 
 
 
 -- Start the first value above the fp and ra, all later storage locations are based off this
-addInteger :: Scope -> ID -> Int -> ProgData
-addInteger [] id val = ([(16, id)], (storeStack val 16))
-addInteger sc id val = ([(nAddress, id)] ++ sc, storeStack val nAddress)
+addInteger :: Scope -> ID -> Int -> Mark -> ProgData
+addInteger [] id val mk = ([(16, id)], (storeStack val 16), mk)
+addInteger sc id val mk = ([(nAddress, id)] ++ sc, storeStack val nAddress, mk)
   where 
     nAddress = (fst (head sc)) + 8
 
@@ -114,12 +131,10 @@ epilogue = printf  "\tlw\tfp,8(sp)\n\
                     \\taddi\tsp,sp,-FP_OFFSET\n"
 
 
-compBop :: BinaryOperator -> String -> String -> String
-compBop exp b0 b1 = case exp of 
-  (Eq) -> error "TODO"
 
 stackSpace :: [Token] -> Bytes -> Bytes
 stackSpace [] stackSize     = stackSize
 stackSpace (x:xs) stackSize = case x of 
   INT       -> stackSpace xs (stackSize + 8) 
   otherwise -> stackSpace xs stackSize
+
