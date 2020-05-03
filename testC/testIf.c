@@ -1,6 +1,9 @@
 int main() {
+  int x = 10;
   if (1==1) {
-    int x = 25;
+    x = 25;
+  } else {
+    x = 15; 
   }
   return x;
 }

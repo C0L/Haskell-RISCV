@@ -31,6 +31,10 @@ tokens :-
   \!=      {\s -> NEQ}
   \<       {\s -> LESS}
   \<=      {\s -> LEQ}
+  
+  \>       {\s -> GREAT}
+  \>=      {\s -> GEQ}
+
 
   \=       {\s -> EQB}
   \+       {\s -> PLUS}
@@ -69,6 +73,8 @@ data Token
   | EQB
   | LEQ
   | LESS
+  | GREAT
+  | GEQ
   | NEQ
   | EQL
   | INT

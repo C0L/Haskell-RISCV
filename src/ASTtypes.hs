@@ -9,6 +9,8 @@ data BinaryOperator
   | Ne
   | Lt
   | Le
+  | Gt
+  | Ge
   | And
   | Or
   deriving (Eq, Ord, Show)
@@ -16,6 +18,7 @@ data BinaryOperator
 
 data Expression
   = BinOp BinaryOperator Expression Expression
+  | Asgn String Expression
   | IfExp Expression Expression 
   | EvalVar String
   | IntLiteral Int

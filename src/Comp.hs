@@ -34,12 +34,8 @@ compExp exp reg scope mark = case exp of
   (Main e0)                         -> let (nScope, asm, mk) = (compExp e0 reg scope mark) 
                                        in (scope, "main:\n" ++ prologue ++ asm, mk)
 
-  (IfExp (BinOp bop b0 b1) e0)      -> case bop of 
-                                          otherwise -> (scope,"IF EXPRESSION PARSED!!", mark)
-                                          Le  -> (scope, "\tblt\n", mark)    -- Branch less than FILLER
-                                          --Lt  -> "\tble\n"    -- Branch less than or equal
-                                          --Ne  -> "\tbne\n"    -- Branch not equal
-                                          --Eq  -> "\tbeq\n"    -- Branch equal
+  (IfExp (BinOp bop b0 b1) e0)      -> (scope, "IFEXP", mark)
+
 
   (DeclareInt id e0)                -> addInteger scope id e0 mark
 
@@ -64,13 +60,21 @@ compExp exp reg scope mark = case exp of
 
 -- Assume that the predicates are in register x5 and x6
 conditionalBlock :: BinaryOperator -> ASM -> ASM -> Mark -> Reg -> ASM
-conditionalBlock bop posExp negExp mk reg = printf case bop of 
-  Lt -> printf "\tblt\tx5,x6,mark_%d:\n\
-                \%s\                        
-                \\tjal\tmark_%d:\n\
-                \mark_%d:\n\
-                \%s\          
-                \mark_%d:\n" mk negExp (mk+1) mk posExp (mk+1)
+conditionalBlock bop posExp negExp mk reg = printf "\t%s\tx5,x6,mark_%d:\n\
+                                                    \%s\                        
+                                                    \\tjal\tmark_%d:\n\
+                                                    \mark_%d:\n\
+                                                    \%s\          
+                                                    \mark_%d:\n" op mk negExp (mk+1) mk posExp (mk+1)
+  where 
+    op = case bop of 
+      Lt -> "blt"
+      Le -> "ble"
+      Eq -> "beq"
+      Ne -> "bne"
+
+
+
 
 
 

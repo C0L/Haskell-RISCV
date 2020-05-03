@@ -31,13 +31,15 @@ import Control.Monad.Except
   '='   {EQB}
   '<='  {LEQ}
   '<'   {LESS}
+  '>'   {GREAT}
+  '>='  {GEQ}
   '!='  {NEQ}
   '=='  {EQL}
   'int' {INT}
   'main'   {MAIN}
   'return' {RET} 
 
-%nonassoc '=' '==' '!=' '<' '<=' if else
+%nonassoc '=' '==' '!=' '<' '<=' '>=' '>' if else
 %left '||' '&&'
 %left '+' '-'
 %left '*' 
@@ -56,9 +58,12 @@ Typs : 'int' VAR '=' NUM                    {DeclareInt $2 $4}
 
 Vals : NUM                                  {IntLiteral $1}
      | VAR                                  {EvalVar $1}
+     | VAR '=' Vals                         {Asgn $1 $3}
      | Cond                                 {$1}
 
 Cond : if '(' Func ')' '{' Func '}'         {IfExp $3 $6}
+     | if '(' Func ')' '{' Func '}' ELS     {USE A LIST OF THE ELSE STATEMENTS}
+     | if '(' Func ')' '{' Func '}' ELSES   {}
      | if '(' Func ')' '{' Func '}' Div     {LnBrk (IfExp $3 $6) $8}
      | BinOps                               {$1}
 
@@ -67,6 +72,8 @@ BinOps : Func '*' Func                      {BinOp Mul $1 $3}
        | Func '-' Func                      {BinOp Minus $1 $3}
        | Func '<' Func                      {BinOp Lt $1 $3} 
        | Func '<=' Func                     {BinOp Le $1 $3} 
+       | Func '>' Func                      {BinOp Gt $1 $3} 
+       | Func '>=' Func                     {BinOp Ge $1 $3} 
        | Func '==' Func                     {BinOp Eq $1 $3} 
        | Func '!=' Func                     {BinOp Ne $1 $3} 
        | Func '&&' Func                     {BinOp And $1 $3} 
