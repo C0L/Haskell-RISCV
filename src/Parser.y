@@ -61,11 +61,11 @@ Vals : NUM                                  {IntLiteral $1}
      | VAR '=' Vals                         {Asgn $1 $3}
      | Cond                                 {$1}
 
-Cond : if '(' Func ')' '{' Func '}'         {IfExp $3 $6}
-     | if '(' Func ')' '{' Func '}' ELS     {USE A LIST OF THE ELSE STATEMENTS}
-     | if '(' Func ')' '{' Func '}' ELSES   {}
-     | if '(' Func ')' '{' Func '}' Div     {LnBrk (IfExp $3 $6) $8}
-     | BinOps                               {$1}
+Cond : if '(' Func ')' '{' Func '}'             {IfExp $3 $6}
+     | if '(' Func ')' '{' Func '}' Div         {LnBrk (IfExp $3 $6) $8}
+     | if '(' Func ')' '{' Func '}' Elses       {}
+     | if '(' Func ')' '{' Func '}' Elses Div   {LnBrk (IfElExp $3) $5}
+     | BinOps                                   {$1}
 
 BinOps : Func '*' Func                      {BinOp Mul $1 $3}
        | Func '+' Func                      {BinOp Plus $1 $3}
@@ -83,6 +83,9 @@ BinOps : Func '*' Func                      {BinOp Mul $1 $3}
 Paren : '(' Func ')'                        {$2}
       | Ret                                 {$1}
 
+Else : ELSE '{' Func '}'
+     | ELSE IF '(' Func ')' '{' Func '}' 
+
 Ret : 'return' Vals ';'                     {RetV $2}
 
 
@@ -98,5 +101,7 @@ parseExpr input = runExcept $ do
 
 parseTokens :: String -> Either String [Token]
 parseTokens = runExcept . scanTokens
+
+makeClause :: [Else]
 
 }
