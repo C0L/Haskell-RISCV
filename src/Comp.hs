@@ -34,9 +34,17 @@ compExp exp reg scope mark = case exp of
   (Main e0)                         -> let (nScope, asm, mk) = (compExp e0 reg scope mark) 
                                        in (scope, "main:\n" ++ prologue ++ asm, mk)
 
-  (IfExp (BinOp bop b0 b1) e)      -> (scope, "IFEXP", mark)
+  (IfExp (BinOp bop e0 e1) e2)       -> let (_, asm0, _) = (compExp e0 "x5" scope mark) 
+                                            (_, asm1, _) = (compExp e1 "x6" scope mark) 
+                                            (_, asm2, _) = (compExp e2 reg scope mark) -- Positive branch logic
+                                        in (scope, asm0 ++ asm1 ++ conditionalBlock bop asm2 FalseASM mark, mark+2) -- Leaving in false as a no-op
 
-  (IfElExp (BinOp bop b0 b1) e el) -> 
+  (IfElExp (BinOp bop e0 e1) e2 el)  -> let (_, asm0, _) = (compExp e0 "x5" scope mark) 
+                                            (_, asm1, _) = (compExp e1 "x6" scope mark) 
+                                            (_, asm2, _) = (compExp e2 reg scope mark) -- Positive branch logic 
+                                            asm3 = multiConditonalBlock el reg mark    -- Nested if statements
+                                        in (scope, asm0 ++ asm1 ++ conditionalBlock bop asm2 FalseASM mark, mark+2) -- Leaving in false as a no-op
+
 
   (DeclareInt id e0)                -> addInteger scope id e0 mark
 
@@ -45,8 +53,8 @@ compExp exp reg scope mark = case exp of
   (EvalVar e0)                      -> (scope, retrieveStack reg e0 scope, mark) -- Load var into general purpose reg
 
   (BinOp bop e0 e1)                 -> let (_, asm0, _) = (compExp e0 "x5" scope mark) 
-                                           (_, asm1, _) = (compExp e0 "x6" scope mark) 
-                                       in (scope, asm0 ++ asm1 ++ conditionalBlock bop pos neg 1mark, mark+1) 
+                                           (_, asm1, _) = (compExp e1 "x6" scope mark) 
+                                       in (scope, asm0 ++ asm1 ++ conditionalBlock bop TrueASM FalseASM mark, mark+2) 
 
 
   (LnBrk e0 e1)                     -> let (s0, asm0, mk0) = (compExp e0 reg scope mark) 
@@ -59,8 +67,11 @@ compExp exp reg scope mark = case exp of
 
 
 -- If statement with mutliple if clauses
-multiConditionalBlock :: BinaryOperator -> ASM -> [Expression] -> Mark -> ASM
-multiConditionalBlock bop posExp els mk = 
+multiConditionalBlock :: [Expression] -> Reg -> Mark -> ASM
+multiConditionalBlock []        reg mk = "" 
+multiConditionalBlock (e:elses) reg mk = case e of 
+  (ElseExp)   -> -- Only a single else possible obv
+  (ElseIfExp) -> -- Infinite chainability
 
 
 -- Assume that the predicates are in register x5 and x6
@@ -80,8 +91,12 @@ conditionalBlock bop posExp negExp mk reg = printf "\t%s\tx5,x6,mark_%d:\n\
 
 
 
+TrueASM :: Reg -> ASM
+TrueASM reg = printf "\tli\t%s,1\n" reg
 
 
+FalseASM :: Reg -> ASM
+FalseASM reg = printf "\tli\t%s,0\n" reg
 
 -- Start the first value above the fp and ra, all later storage locations are based off this
 addInteger :: Scope -> ID -> Int -> Mark -> ProgData
