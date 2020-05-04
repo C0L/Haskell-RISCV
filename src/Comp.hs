@@ -34,8 +34,9 @@ compExp exp reg scope mark = case exp of
   (Main e0)                         -> let (nScope, asm, mk) = (compExp e0 reg scope mark) 
                                        in (scope, "main:\n" ++ prologue ++ asm, mk)
 
-  (IfExp (BinOp bop b0 b1) e0)      -> (scope, "IFEXP", mark)
+  (IfExp (BinOp bop b0 b1) e)      -> (scope, "IFEXP", mark)
 
+  (IfElExp (BinOp bop b0 b1) e el) -> 
 
   (DeclareInt id e0)                -> addInteger scope id e0 mark
 
@@ -45,7 +46,7 @@ compExp exp reg scope mark = case exp of
 
   (BinOp bop e0 e1)                 -> let (_, asm0, _) = (compExp e0 "x5" scope mark) 
                                            (_, asm1, _) = (compExp e0 "x6" scope mark) 
-                                       in (scope, conditionalBlock bop asm0 asm1 mark reg, mark+1) 
+                                       in (scope, asm0 ++ asm1 ++ conditionalBlock bop pos neg 1mark, mark+1) 
 
 
   (LnBrk e0 e1)                     -> let (s0, asm0, mk0) = (compExp e0 reg scope mark) 
@@ -57,9 +58,13 @@ compExp exp reg scope mark = case exp of
                                        in (s0, asm ++ epilogue ++ funcRet, mk0)
 
 
+-- If statement with mutliple if clauses
+multiConditionalBlock :: BinaryOperator -> ASM -> [Expression] -> Mark -> ASM
+multiConditionalBlock bop posExp els mk = 
+
 
 -- Assume that the predicates are in register x5 and x6
-conditionalBlock :: BinaryOperator -> ASM -> ASM -> Mark -> Reg -> ASM
+conditionalBlock :: BinaryOperator -> ASM -> ASM -> Mark -> ASM
 conditionalBlock bop posExp negExp mk reg = printf "\t%s\tx5,x6,mark_%d:\n\
                                                     \%s\                        
                                                     \\tjal\tmark_%d:\n\

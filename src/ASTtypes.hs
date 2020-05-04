@@ -20,6 +20,9 @@ data Expression
   = BinOp BinaryOperator Expression Expression
   | Asgn String Expression
   | IfExp Expression Expression 
+  | IfElExp Expression Expression [Expression]
+  | ElseExp Expression
+  | ElseIfExp Expression Expression
   | EvalVar String
   | IntLiteral Int
   | DeclareInt String Int 
