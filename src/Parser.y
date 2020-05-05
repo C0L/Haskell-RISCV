@@ -85,8 +85,8 @@ Paren : '(' Func ')'                        {$2}
 
 Elses : else '{' Func '}'                        {[(ElseExp $3)]}
       | else '{' Func '}' Elses                  {[(ElseExp $3)] ++ $5}
-      | else if '(' Func ')' '{' Func '}'        {[ElseIfExp $4 $7]}  
-      | else if '(' Func ')' '{' Func '}' Elses  {[ElseIfExp $4 $7] ++ $9}  
+      | else if '(' Func ')' '{' Func '}'        {[(ElseIfExp $4 $7)]}  
+      | else if '(' Func ')' '{' Func '}' Elses  {[(ElseIfExp $4 $7)] ++ $9}  
 
 Ret : 'return' Vals ';'                          {RetV $2}
 

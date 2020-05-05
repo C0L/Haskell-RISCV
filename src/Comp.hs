@@ -34,27 +34,30 @@ compExp exp reg scope mark = case exp of
   (Main e0)                         -> let (nScope, asm, mk) = (compExp e0 reg scope mark) 
                                        in (scope, "main:\n" ++ prologue ++ asm, mk)
 
-  (IfExp (BinOp bop e0 e1) e2)       -> let (_, asm0, _) = (compExp e0 "x5" scope mark) 
-                                            (_, asm1, _) = (compExp e1 "x6" scope mark) 
-                                            (_, asm2, _) = (compExp e2 reg scope mark) -- Positive branch logic
-                                        in (scope, asm0 ++ asm1 ++ conditionalBlock bop asm2 FalseASM mark, mark+2) -- Leaving in false as a no-op
+  (IfExp (BinOp bop e0 e1) e2)      -> let (_, asm0, _) = (compExp e0 "x5" scope mark) 
+                                           (_, asm1, _) = (compExp e1 "x6" scope mark) 
+                                           (_, asm2, _) = (compExp e2 reg scope mark) -- Positive branch logic
+                                       in (scope, asm0 ++ asm1 ++ (conditionalBlock bop asm2 noOP mark), mark+2) -- Leaving in false as a no-op
 
-  (IfElExp (BinOp bop e0 e1) e2 el)  -> let (_, asm0, _) = (compExp e0 "x5" scope mark) 
-                                            (_, asm1, _) = (compExp e1 "x6" scope mark) 
-                                            (_, asm2, _) = (compExp e2 reg scope mark) -- Positive branch logic 
-                                            asm3 = multiConditonalBlock el reg mark    -- Nested if statements
-                                        in (scope, asm0 ++ asm1 ++ conditionalBlock bop asm2 FalseASM mark, mark+2) -- Leaving in false as a no-op
+  (IfElExp (BinOp bop e0 e1) e2 el) -> let (_, asm0, _) = (compExp e0 "x5" scope mark) 
+                                           (_, asm1, _) = (compExp e1 "x6" scope mark) 
+                                           (_, asm2, _) = (compExp e2 reg scope mark) -- Positive branch logic 
+                                           asm3 = multiConditionalBlock el reg scope (mark+2)    -- Nested if statements
+                                       in (scope, asm0 ++ asm1 ++ (conditionalBlock bop asm2 asm3 mark), mark+2)  
 
 
   (DeclareInt id e0)                -> addInteger scope id e0 mark
 
   (IntLiteral e0)                   -> (scope, loadLiteral reg e0, mark)
 
+  (Asgn e0 e1)                      -> let (_, asm0, _) = (compExp e1 "x5" scope mark)
+                                       in (scope, asm0 ++ (storeRegStack "x5" e0 scope), mark)
+
   (EvalVar e0)                      -> (scope, retrieveStack reg e0 scope, mark) -- Load var into general purpose reg
 
   (BinOp bop e0 e1)                 -> let (_, asm0, _) = (compExp e0 "x5" scope mark) 
                                            (_, asm1, _) = (compExp e1 "x6" scope mark) 
-                                       in (scope, asm0 ++ asm1 ++ conditionalBlock bop TrueASM FalseASM mark, mark+2) 
+                                       in (scope, asm0 ++ asm1 ++ (conditionalBlock bop (trueASM reg) (falseASM reg) mark), mark+2) 
 
 
   (LnBrk e0 e1)                     -> let (s0, asm0, mk0) = (compExp e0 reg scope mark) 
@@ -67,49 +70,64 @@ compExp exp reg scope mark = case exp of
 
 
 -- If statement with mutliple if clauses
-multiConditionalBlock :: [Expression] -> Reg -> Mark -> ASM
-multiConditionalBlock []        reg mk = "" 
-multiConditionalBlock (e:elses) reg mk = case e of 
-  (ElseExp)   -> -- Only a single else possible obv
-  (ElseIfExp) -> -- Infinite chainability
+multiConditionalBlock :: [Expression] -> Reg -> Scope -> Mark -> ASM
+multiConditionalBlock []        reg scope mk = noOP
+multiConditionalBlock (e:elses) reg scope mk = case e of 
+  (ElseExp e0)                     -> let (_, asm0, _) = (compExp e0 reg scope mk) in asm0 -- Only a single else possible 
+
+  (ElseIfExp (BinOp bop e0 e1) e2) -> let (_, asm1, _) = (compExp e0 "x5" scope mk) 
+                                          (_, asm2, _) = (compExp e1 "x6" scope mk) 
+                                          (_, asm3, _) = (compExp e2 reg scope mk) 
+                                      in asm1 ++ asm2 ++ (conditionalBlock bop asm3 (multiConditionalBlock elses reg scope (mk+2)) mk) -- Infinite chainability
 
 
 -- Assume that the predicates are in register x5 and x6
 conditionalBlock :: BinaryOperator -> ASM -> ASM -> Mark -> ASM
-conditionalBlock bop posExp negExp mk reg = printf "\t%s\tx5,x6,mark_%d:\n\
-                                                    \%s\                        
-                                                    \\tjal\tmark_%d:\n\
-                                                    \mark_%d:\n\
-                                                    \%s\          
-                                                    \mark_%d:\n" op mk negExp (mk+1) mk posExp (mk+1)
+conditionalBlock bop posExp negExp mk = printf "\t%s\tx5,x6,mark_%d:\n\
+                                               \%s\                        
+                                               \\tjal\tmark_%d:\n\
+                                               \mark_%d:\n\
+                                               \%s\          
+                                               \mark_%d:\n" op mk negExp (mk+1) mk posExp (mk+1)
   where 
     op = case bop of 
       Lt -> "blt"
       Le -> "ble"
       Eq -> "beq"
       Ne -> "bne"
+-- ADD GREATER THAN OPTIONS 
 
 
+trueASM :: Reg -> ASM
+trueASM reg = printf "\tli\t%s,1\n" reg
 
-TrueASM :: Reg -> ASM
-TrueASM reg = printf "\tli\t%s,1\n" reg
+
+falseASM :: Reg -> ASM
+falseASM reg = printf "\tli\t%s,0\n" reg
 
 
-FalseASM :: Reg -> ASM
-FalseASM reg = printf "\tli\t%s,0\n" reg
+noOP :: ASM
+noOP = "\taddi\tx0,x0,0\n"
 
 -- Start the first value above the fp and ra, all later storage locations are based off this
 addInteger :: Scope -> ID -> Int -> Mark -> ProgData
-addInteger [] id val mk = ([(16, id)], (storeStack val 16), mk)
-addInteger sc id val mk = ([(nAddress, id)] ++ sc, storeStack val nAddress, mk)
+addInteger [] id val mk = ([(16, id)], (storeLitStack val 16), mk)
+addInteger sc id val mk = ([(nAddress, id)] ++ sc, storeLitStack val nAddress, mk)
   where 
     nAddress = (fst (head sc)) + 8
 
 
--- Potentially add tyoes and pass that in here
-storeStack :: Int -> Bytes -> ASM
-storeStack val add = printf "\tli\tx5,0x%x\n\
+-- Potentially add types and pass that in here
+storeLitStack :: Int -> Bytes -> ASM
+storeLitStack val add = printf "\tli\tx5,0x%x\n\
                             \\tsw\tx5,%d(sp)\n" val add
+
+
+storeRegStack :: Reg -> ID -> Scope -> ASM
+storeRegStack reg id []     = error "Major issue, var not in scope"
+storeRegStack reg id (x:xs) = if id == (snd x)
+                              then printf "\tsw\t%s,%d(sp)\n" reg (fst x)
+                              else storeRegStack reg id xs
 
 
 retrieveStack :: Reg -> ID -> Scope -> ASM
