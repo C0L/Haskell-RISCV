@@ -46,8 +46,13 @@ compExp :: Expression -> Reg -> Scope -> Mark -> ProgData
 compExp exp reg scope mark = case exp of 
   (Prog e0)                         -> compExp e0 reg scope mark 
 
-  (Main e0)                         -> let (nScope, asm, mk) = (compExp e0 reg scope mark) 
-                                       in (scope, "main:\n" ++ prologue ++ asm, mk)
+  (Main e0)                         -> let (nScope, asm, mk) = (compExp e0 reg [] mark) 
+                                       in (scope, "main:\n" ++ prologue ++ (printf asm epilogue), mk)
+
+  (Func id e0)                      -> let (_, asm, mk) = (compExp e0 reg [] mark)
+                                       in (scope, newFunction id (printf asm ""), mk)
+
+  (Call id)                         -> (scope, functionCall id, mark)
 
   (IfExp (BinOp bop e0 e1) e2)      -> let (_, asm0, _) = (compExp e0 "x5" scope mark) 
                                            (_, asm1, _) = (compExp e1 "x6" scope mark) 
@@ -59,7 +64,6 @@ compExp exp reg scope mark = case exp of
                                            (_, asm2, _) = (compExp e2 reg scope mark) -- Positive branch logic 
                                            asm3 = multiConditionalBlock el reg scope (mark+2)    -- Nested if statements
                                        in (scope, asm0 ++ asm1 ++ (conditionalBlock bop asm2 asm3 mark), mark+2)  
-
 
   (DeclareInt id e0)                -> addInteger scope id e0 mark
 
@@ -81,7 +85,8 @@ compExp exp reg scope mark = case exp of
 
 
   (RetV e0)                         -> let (s0, asm, mk0) = (compExp e0 "a0" scope mark)
-                                       in (s0, asm ++ epilogue ++ funcRet, mk0)
+                                       in (s0, asm ++ funcRet, mk0)
+
 
 
 {- 
@@ -124,6 +129,15 @@ conditionalBlock bop posExp negExp mk = printf "\t%s\tx5,x6,mark_%d:\n\
       Eq -> "beq"
       Ne -> "bne"
 -- ADD GREATER THAN OPTIONS 
+
+
+newFunction :: ID -> ASM -> ASM
+newFunction id asm = printf "%s:\n%s" id asm
+
+
+functionCall :: ID -> ASM
+functionCall id = printf "\tjalr\t%s\n" id
+
 
 {-| Set true to the given register -}
 trueASM :: Reg -> ASM
@@ -177,7 +191,7 @@ loadLiteral reg val = printf "\tli\t%s,%d\n" reg val
 
 {- | General purpose return instruction -}
 funcRet :: ASM
-funcRet = "\tjr\tra\n" 
+funcRet = "%s\tjr\tra\n" 
 
 
 {- | General purpose header for all our asm files -}

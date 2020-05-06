@@ -27,6 +27,8 @@ data Expression
   | IntLiteral Int
   | DeclareInt String Int 
   | Main Expression 
+  | Func String Expression
+  | Call String 
   | LnBrk Expression Expression 
   | RetV Expression
   | Prog Expression

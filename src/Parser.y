@@ -45,14 +45,19 @@ import Control.Monad.Except
 %left '*' 
 %%
 
-Func : 'int' 'main' '(' ')' '{' Div '}'     {Main $6}
-     | Div                                  {$1} 
+Func : 'int' 'main' '(' ')' '{' Func '}'       {Main $6}
+     | 'int' 'main' '(' ')' '{' Func '}' Func  {LnBrk (Main $6) $8}
+     | 'int' VAR '(' ')' '{' Func '}'          {Func $2 $6} 
+     | 'int' VAR '(' ')' '{' Func '}' Func     {LnBrk (Func $2 $6) $8} 
+     | VAR '(' ')'                             {Call $1}
+     | Div                                     {$1} 
 
-Div : Typs ';' Div                          {LnBrk $1 $3}
+Div : Func ';' Func                         {LnBrk $1 $3}
     | Typs ';'                              {$1}
     | Typs                                  {$1}
 
-Typs : 'int' VAR '=' NUM                    {DeclareInt $2 $4}
+Typs : 'int' VAR '=' NUM ';'                {DeclareInt $2 $4}
+     | 'int' VAR '=' NUM ';' Func           {LnBrk (DeclareInt $2 $4) $6}
      | Vals                                 {$1}
 
 
